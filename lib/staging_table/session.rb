@@ -32,7 +32,8 @@ module StagingTable
 
     def insert(records)
       ensure_table_created!
-      BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(records)
+      normalized_records = normalize_records(records)
+      BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(normalized_records)
     end
 
     def insert_from_query(relation)
@@ -80,6 +81,18 @@ module StagingTable
 
     def ensure_table_created!
       raise TableError, "Staging table has not been created. You must call #create_table or use StagingTable.stage with a block before inserting or transferring data." unless @table_created
+    end
+
+    def normalize_records(records)
+      if records.is_a?(ActiveRecord::Relation)
+        records.map(&:attributes)
+      elsif records.respond_to?(:to_a)
+        records.to_a.map do |record|
+          record.is_a?(ActiveRecord::Base) ? record.attributes : record
+        end
+      else
+        records
+      end
     end
   end
 end

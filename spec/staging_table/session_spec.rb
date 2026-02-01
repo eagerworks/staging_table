@@ -59,6 +59,27 @@ RSpec.describe StagingTable::Session do
         expect(session.staging_model.count).to eq(2)
       end
 
+      it "accepts an array of ActiveRecord objects" do
+        TestUser.create!(name: "John", email: "john@example.com")
+        TestUser.create!(name: "Jane", email: "jane@example.com")
+
+        session.insert(TestUser.all.to_a)
+
+        expect(session.staging_model.count).to eq(2)
+        expect(session.staging_model.pluck(:name)).to match_array(%w[John Jane])
+      end
+
+      it "accepts an ActiveRecord::Relation" do
+        TestUser.create!(name: "John", email: "john@example.com")
+        TestUser.create!(name: "Jane", email: "jane@example.com")
+        TestUser.create!(name: "Bob", email: "bob@example.com")
+
+        session.insert(TestUser.where(name: %w[John Jane]))
+
+        expect(session.staging_model.count).to eq(2)
+        expect(session.staging_model.pluck(:name)).to match_array(%w[John Jane])
+      end
+
       it "raises an error if table not created" do
         new_session = described_class.new(TestUser)
         expect { new_session.insert([{name: "Test"}]) }.to raise_error(StagingTable::Error)

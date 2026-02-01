@@ -11,7 +11,7 @@ module StagingTable
       return if records.empty?
 
       unless records.all? { |r| r.is_a?(Hash) }
-        raise RecordError, "All records must be hashes."
+        raise RecordError, "All records must be hashes. If passing ActiveRecord objects, use Session#insert which normalizes them automatically."
       end
 
       columns = records.first.keys.map(&:to_s)

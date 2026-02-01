@@ -33,6 +33,35 @@ StagingTable.stage(User) do |staging|
 end
 ```
 
+### Inserting Data
+
+The `insert` method accepts multiple input types:
+
+```ruby
+StagingTable.stage(User) do |staging|
+  # Array of hashes
+  staging.insert([
+    { name: 'John', email: 'john@example.com' },
+    { name: 'Jane', email: 'jane@example.com' }
+  ])
+
+  # Array of ActiveRecord objects
+  staging.insert(User.where(active: true).to_a)
+
+  # ActiveRecord::Relation (query)
+  staging.insert(User.where(role: 'admin'))
+end
+```
+
+For very large datasets, use `insert_from_query` which processes records in batches to avoid memory issues:
+
+```ruby
+StagingTable.stage(User) do |staging|
+  # Processes in batches (default: 1000 records per batch)
+  staging.insert_from_query(User.where(needs_migration: true))
+end
+```
+
 ### Upsert Strategy (On Conflict)
 
 You can configure the transfer strategy to handle duplicates.
