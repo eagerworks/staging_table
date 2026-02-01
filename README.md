@@ -3,7 +3,7 @@
 **The red carpet for your data before it hits the main stage.**
 
 [![Gem Version](https://badge.fury.io/rb/staging_table.svg)](https://badge.fury.io/rb/staging_table)
-[![Build Status](https://github.com/eagerworks/staging_table/actions/workflows/main.yml/badge.svg)](https://github.com/eagerworks/staging_table/actions)
+[![Test Status](https://github.com/eagerworks/staging_table/actions/workflows/test.yml/badge.svg)](https://github.com/eagerworks/staging_table/actions)
 
 Stop shoving data directly into your production tables like a savage. Give it a dressing room first! 
 

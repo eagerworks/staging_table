@@ -64,7 +64,7 @@ module StagingTable
       # @yield [event] Block called for each event
       # @return [ActiveSupport::Notifications::Fanout::Subscribers::Evented]
       def subscribe_all(&block)
-        ActiveSupport::Notifications.subscribe(/^#{NAMESPACE}\./, &block)
+        ActiveSupport::Notifications.subscribe(/^#{NAMESPACE}\./o, &block)
       end
     end
   end

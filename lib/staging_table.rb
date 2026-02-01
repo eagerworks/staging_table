@@ -51,15 +51,13 @@ module StagingTable
         }
 
         Instrumentation.instrument(:stage, payload) do |instrumentation_payload|
-          begin
-            session.create_table
-            yield(session)
-            result = session.transfer
-            instrumentation_payload[:result] = result
-            result
-          ensure
-            session.drop_table
-          end
+          session.create_table
+          yield(session)
+          result = session.transfer
+          instrumentation_payload[:result] = result
+          result
+        ensure
+          session.drop_table
         end
       else
         session.create_table
