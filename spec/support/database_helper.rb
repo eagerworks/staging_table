@@ -22,7 +22,11 @@ module DatabaseHelper
         warn "PostgreSQL not available: #{e.message}"
         false
       ensure
-        ActiveRecord::Base.connection_pool.disconnect! rescue nil
+        begin
+          ActiveRecord::Base.connection_pool.disconnect!
+        rescue
+          nil
+        end
       end
     end
 
@@ -38,7 +42,11 @@ module DatabaseHelper
         warn "MySQL not available: #{e.message}"
         false
       ensure
-        ActiveRecord::Base.connection_pool.disconnect! rescue nil
+        begin
+          ActiveRecord::Base.connection_pool.disconnect!
+        rescue
+          nil
+        end
       end
     end
 

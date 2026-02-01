@@ -10,4 +10,5 @@ group :development, :test do
   gem "mysql2"
   gem "ruby-lsp"
   gem "ruby-lsp-rspec"
+  gem "standard"
 end
