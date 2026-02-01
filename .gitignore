@@ -1,0 +1,36 @@
+# Gem build artifacts
+*.gem
+pkg/
+
+# Bundle
+/.bundle/
+vendor/bundle
+
+# Ruby version managers
+.ruby-version
+.ruby-gemset
+.rvmrc
+
+# RSpec
+spec/examples.txt
+
+# Coverage
+/coverage/
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+*.tmp
+
+Gemfile.lock
