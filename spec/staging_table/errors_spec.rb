@@ -34,7 +34,7 @@ RSpec.describe "StagingTable Error Handling" do
       allow(model).to receive(:connection).and_return(connection)
 
       # Mock staging model
-      staging_model = double("StagingModel", table_name: "staging_users", column_names: ["id", "name"])
+      staging_model = double("StagingModel", table_name: "staging_users", column_names: ["id", "name"], count: 1)
 
       strategy = StagingTable::TransferStrategies::Upsert.new(model, staging_model, transfer_strategy: :upsert)
 
@@ -49,7 +49,7 @@ RSpec.describe "StagingTable Error Handling" do
       allow(model).to receive(:connection).and_return(connection)
 
       # Mock staging model
-      staging_model = double("StagingModel", table_name: "staging_users", column_names: ["id", "name"])
+      staging_model = double("StagingModel", table_name: "staging_users", column_names: ["id", "name"], count: 1)
 
       strategy = StagingTable::TransferStrategies::Upsert.new(model, staging_model, transfer_strategy: :upsert)
 
@@ -71,7 +71,7 @@ RSpec.describe "StagingTable Error Handling" do
     it "is raised for upsert with unsupported adapter" do
       connection = double("Connection", adapter_name: "Oracle")
       allow(model).to receive(:connection).and_return(connection)
-      staging_model = double("StagingModel")
+      staging_model = double("StagingModel", count: 1)
 
       strategy = StagingTable::TransferStrategies::Upsert.new(model, staging_model)
 
