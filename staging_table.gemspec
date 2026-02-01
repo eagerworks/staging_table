@@ -6,12 +6,12 @@ require "staging_table/version"
 Gem::Specification.new do |spec|
   spec.name = "staging_table"
   spec.version = StagingTable::VERSION
-  spec.authors = ["Syntax Rails"]
-  spec.email = ["hello@syntaxrails.com"]
+  spec.authors = ["eagerworks"]
+  spec.email = ["hello@eagerworks.com"]
 
   spec.summary = "Mass data imports via temporary staging tables"
   spec.description = "Handles mass data imports via temporary staging tables, supporting PostgreSQL and MySQL, with a clean DSL for table lifecycle management and built-in bulk insert capabilities."
-  spec.homepage = "https://github.com/syntaxrails/staging_table"
+  spec.homepage = "https://github.com/eagerworks/staging_table"
   spec.license = "MIT"
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do

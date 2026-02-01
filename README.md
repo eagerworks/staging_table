@@ -1,8 +1,32 @@
-# StagingTable
+# 🎭 StagingTable
 
-Handles mass data imports via temporary staging tables, supporting PostgreSQL, MySQL, and SQLite. This gem provides a clean DSL for creating temporary tables that mirror your source model, performing bulk inserts into them, and then transferring the data to the destination table using efficient SQL strategies.
+**The red carpet for your data before it hits the main stage.**
 
-## Installation
+[![Gem Version](https://badge.fury.io/rb/staging_table.svg)](https://badge.fury.io/rb/staging_table)
+[![Build Status](https://github.com/eagerworks/staging_table/actions/workflows/main.yml/badge.svg)](https://github.com/eagerworks/staging_table/actions)
+
+Stop shoving data directly into your production tables like a savage. Give it a dressing room first! 
+
+`StagingTable` lets you bulk import data into a temporary "staging" table, validate/massage it, and *then* gracefully transfer it to your real tables using efficient SQL strategies.
+
+It's like `INSERT INTO ... SELECT` but with a Ruby DSL that makes you smile.
+
+## 🌟 Why?
+
+Importing large datasets is hard.
+- **Direct inserts** are slow and bypass validations.
+- **ActiveRecord** is safe but slow for millions of records.
+- **Raw SQL** is fast but messy and hard to maintain.
+
+**StagingTable** gives you the best of both worlds:
+1.  **🚀 Speed**: Bulk insert into a temp table (no index overhead yet).
+2.  **🛡️ Safety**: Validate or query the data *before* it touches your real table.
+3.  **🧹 Cleanliness**: Automatic cleanup of temp tables.
+4.  **🔄 Power**: Built-in support for `UPSERT` (INSERT ON CONFLICT) and duplicate handling.
+
+---
+
+## 📦 Installation
 
 Add this line to your application's Gemfile:
 
@@ -10,156 +34,169 @@ Add this line to your application's Gemfile:
 gem 'staging_table'
 ```
 
-## Usage
+And then execute:
 
-### Basic Usage
+```bash
+bundle install
+```
 
-The simplest way to use StagingTable is with the block syntax. This handles the creation and cleanup of the temporary table automatically.
+---
+
+## 🛠️ Usage
+
+### The "Happy Path" (Block Syntax)
+
+The simplest way to use StagingTable. It handles the creation and cleanup of the temporary table automatically.
 
 ```ruby
+# 1. Create a staging table that mirrors the 'users' table
 StagingTable.stage(User) do |staging|
-  # staging.model is a dynamic ActiveRecord class pointing to the temp table
   
-  # Bulk insert raw hashes
+  # 2. Bulk insert data (Hashes, AR Objects, or Relations)
   staging.insert([
     { name: 'John Doe', email: 'john@example.com' },
     { name: 'Jane Doe', email: 'jane@example.com' }
   ])
   
-  # You can also query the staging table using ActiveRecord methods
+  # 3. The 'staging' object is a real ActiveRecord model!
+  #    You can query it, validate it, or massage data.
   puts "Staged count: #{staging.count}"
+  staging.where(email: nil).delete_all
   
-  # Data is automatically transferred to the 'users' table when the block exits
+  # 4. When the block exits, data is automatically transferred 
+  #    to the 'users' table using a single SQL statement.
 end
 ```
 
-### Inserting Data
+### 📥 Importing Data
 
-The `insert` method accepts multiple input types:
+The `insert` method is flexible. Feed it whatever you have:
 
 ```ruby
 StagingTable.stage(User) do |staging|
-  # Array of hashes
+  # 🍎 Array of Hashes
   staging.insert([
     { name: 'John', email: 'john@example.com' },
     { name: 'Jane', email: 'jane@example.com' }
   ])
 
-  # Array of ActiveRecord objects
+  # 🍊 Array of ActiveRecord objects
   staging.insert(User.where(active: true).to_a)
 
-  # ActiveRecord::Relation (query)
+  # 🍇 ActiveRecord::Relation (Lazy loading)
   staging.insert(User.where(role: 'admin'))
 end
 ```
 
-For very large datasets, use `insert_from_query` which processes records in batches to avoid memory issues:
+For massive datasets, use `insert_from_query` to process in batches and keep memory usage low:
 
 ```ruby
 StagingTable.stage(User) do |staging|
-  # Processes in batches (default: 1000 records per batch)
+  # Processes in batches of 1000 (configurable)
   staging.insert_from_query(User.where(needs_migration: true))
 end
 ```
 
-### Upsert Strategy (On Conflict)
+### ⚔️ Handling Duplicates (Upsert)
 
-You can configure the transfer strategy to handle duplicates.
+Don't let duplicates crash your party. Configure the transfer strategy to handle conflicts gracefully.
 
 ```ruby
 StagingTable.stage(User, 
-  transfer_strategy: :upsert,
+  transfer_strategy: :upsert,    # Default is :insert
   conflict_target: [:email],     # Column(s) to check for conflicts
-  conflict_action: :update       # :update or :ignore
+  conflict_action: :update       # :update (overwrite) or :ignore (skip)
 ) do |staging|
   staging.insert(records)
 end
 ```
 
-### Configuration
+### 🎛️ Manual Control
 
-You can set global defaults in an initializer:
+Need to keep the staging table alive across multiple background jobs? We got you.
 
-```ruby
-StagingTable.configure do |config|
-  config.default_batch_size = 2000
-  config.default_transfer_strategy = :insert
-end
-```
-
-### Manual Control
-
-For more complex workflows (e.g., across multiple background jobs), you can manage the session manually. Note that temporary tables in PostgreSQL are session-specific, so this only works within the same database connection.
+**Note:** Temporary tables in PostgreSQL are session-specific. This only works if you stay in the same DB connection!
 
 ```ruby
+# Create the session
 session = StagingTable::Session.new(User, excluded_columns: %w[created_at updated_at])
 session.create_table
 
 begin
+  # Insert data in chunks
   session.insert(batch_1)
   session.insert(batch_2)
   
-  # Perform custom validation or cleanup on the staging table
-  session.where(invalid: true).delete_all
+  # Run some sanity checks
+  if session.where(status: 'banned').exists?
+    raise "Whoa there! No banned users allowed."
+  end
   
+  # Commit to the real table
   session.transfer
 ensure
+  # Always clean up your mess
   session.drop_table
 end
 ```
 
-## Supported Databases
+---
 
-- **PostgreSQL**: Uses `CREATE TABLE ... (LIKE ... INCLUDING DEFAULTS)` and `INSERT ... ON CONFLICT ...`
-- **MySQL**: Uses `CREATE TABLE ... LIKE ...` and `INSERT ... ON DUPLICATE KEY UPDATE ...`
-- **SQLite**: Copies table structure from `sqlite_master` and uses `INSERT ... ON CONFLICT ...` for upserts
+## ⚙️ Configuration
 
-## Development
+Set global defaults in an initializer (e.g., `config/initializers/staging_table.rb`):
 
-After checking out the repo, run `bundle install` to install dependencies.
+```ruby
+StagingTable.configure do |config|
+  config.default_batch_size = 2000
+  config.default_transfer_strategy = :insert # or :upsert
+end
+```
+
+---
+
+## 💾 Supported Databases
+
+We speak your language.
+
+| Database | Strategy |
+|----------|----------|
+| **PostgreSQL** | `CREATE TABLE ... (LIKE ... INCLUDING DEFAULTS)` + `INSERT ... ON CONFLICT` |
+| **MySQL** | `CREATE TABLE ... LIKE ...` + `INSERT ... ON DUPLICATE KEY UPDATE` |
+| **SQLite** | Copies structure from `sqlite_master` + `INSERT ... ON CONFLICT` |
+
+---
+
+## 🤝 Contributing
+
+Found a bug? Want to add support for Oracle? (Please don't, but if you must...)
+
+1.  Fork it
+2.  Create your feature branch (`git checkout -b my-new-feature`)
+3.  Commit your changes (`git commit -am 'Add some feature'`)
+4.  Push to the branch (`git push origin my-new-feature`)
+5.  Create new Pull Request
 
 ### Running Tests
 
-The test suite supports PostgreSQL, MySQL, and SQLite databases. SQLite tests run automatically (using an in-memory database). For PostgreSQL and MySQL, configure the connection via environment variables:
+We support the big three. Set up your environment variables for PG/MySQL or just run SQLite tests out of the box.
 
 ```bash
-# PostgreSQL
-export POSTGRES_DB=staging_table_test
-export POSTGRES_USER=postgres
-export POSTGRES_PASSWORD=
-export POSTGRES_HOST=localhost
-
-# MySQL
-export MYSQL_DB=staging_table_test
-export MYSQL_USER=root
-export MYSQL_PASSWORD=
-export MYSQL_HOST=localhost
-```
-
-Run all tests:
-
-```bash
+# Run everything
 bundle exec rake spec
-```
 
-Run only PostgreSQL tests:
-
-```bash
+# Pick your poison
 bundle exec rake spec:postgresql
-```
-
-Run only MySQL tests:
-
-```bash
 bundle exec rake spec:mysql
-```
-
-Run only SQLite tests:
-
-```bash
 bundle exec rspec --tag sqlite
 ```
 
-## Contributing
+---
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/syntaxrails/staging_table.
+## 🙏 Special Thanks
+
+Special thanks to [agustin-peluffo](https://github.com/agustin-peluffo) who created the first implementation for a project!
+
+---
+
+*Made with ❤️ by [eagerworks](https://eagerworks.com)*
