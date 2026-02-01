@@ -10,6 +10,10 @@ module StagingTable
     def insert(records)
       return if records.empty?
 
+      unless records.all? { |r| r.is_a?(Hash) }
+        raise RecordError, "All records must be hashes."
+      end
+
       columns = records.first.keys.map(&:to_s)
       quoted_columns = columns.map { |c| connection.quote_column_name(c) }.join(", ")
       quoted_table = connection.quote_table_name(model.table_name)

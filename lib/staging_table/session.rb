@@ -46,7 +46,12 @@ module StagingTable
 
     def transfer
       ensure_table_created!
-      strategy_class = TransferStrategies.const_get(options[:transfer_strategy].to_s.camelize)
+      strategy_name = options[:transfer_strategy].to_s.camelize
+      begin
+        strategy_class = TransferStrategies.const_get(strategy_name)
+      rescue NameError
+        raise ConfigurationError, "Invalid transfer strategy: #{options[:transfer_strategy]}. Available strategies: insert, upsert."
+      end
       strategy_class.new(source_model, staging_model, options).transfer
     end
 
@@ -74,7 +79,7 @@ module StagingTable
     end
 
     def ensure_table_created!
-      raise Error, "Staging table not created. Call create_table first." unless @table_created
+      raise TableError, "Staging table has not been created. You must call #create_table or use StagingTable.stage with a block before inserting or transferring data." unless @table_created
     end
   end
 end

@@ -16,25 +16,30 @@ module StagingTable
         when /mysql/
           mysql_upsert
         else
-          raise Error, "Upsert strategy not supported for adapter: #{adapter_name}"
+          raise AdapterError, "Upsert strategy not supported for adapter: #{adapter_name}. Supported adapters are PostgreSQL and MySQL."
         end
       end
 
       private
 
       def postgresql_upsert
+        conflict_target = Array(@options[:conflict_target])
+        if conflict_target.empty?
+          raise ConfigurationError, "PostgreSQL upsert requires :conflict_target option specifying the unique constraint columns. Example: transfer_strategy: :upsert, conflict_target: [:email]"
+        end
+
         columns = column_names.map { |c| quote_column(c) }.join(", ")
-        conflict_target = Array(@options[:conflict_target]).map { |c| quote_column(c) }.join(", ")
+        conflict_target_sql = conflict_target.map { |c| quote_column(c) }.join(", ")
         source_table = quote_table(@source_model.table_name)
         staging_table = quote_table(@staging_model.table_name)
 
         sql = "INSERT INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table}"
-        sql += " ON CONFLICT (#{conflict_target})"
+        sql += " ON CONFLICT (#{conflict_target_sql})"
 
         if @options[:conflict_action] == :ignore
           sql += " DO NOTHING"
         else
-          updates = column_names.reject { |c| Array(@options[:conflict_target]).include?(c.to_sym) || c == "id" }
+          updates = column_names.reject { |c| conflict_target.map(&:to_s).include?(c.to_s) || c == "id" }
             .map { |c| "#{quote_column(c)} = EXCLUDED.#{quote_column(c)}" }.join(", ")
           sql += " DO UPDATE SET #{updates}"
         end

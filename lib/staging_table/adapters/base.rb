@@ -24,7 +24,7 @@ module StagingTable
         when /mysql/
           Mysql.new(connection)
         else
-          raise Error, "Unsupported adapter: #{adapter_name}"
+          raise AdapterError, "Unsupported adapter: #{adapter_name}. StagingTable supports PostgreSQL and MySQL adapters."
         end
       end
     end

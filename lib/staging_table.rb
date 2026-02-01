@@ -1,5 +1,6 @@
 require "active_record"
 require "staging_table/version"
+require "staging_table/errors"
 require "staging_table/configuration"
 require "staging_table/session"
 require "staging_table/model_factory"
@@ -11,8 +12,6 @@ require "staging_table/transfer_strategies/insert"
 require "staging_table/transfer_strategies/upsert"
 
 module StagingTable
-  class Error < StandardError; end
-
   class << self
     def configuration
       @configuration ||= Configuration.new
