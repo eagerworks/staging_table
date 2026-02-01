@@ -1,6 +1,6 @@
 # StagingTable
 
-Handles mass data imports via temporary staging tables, supporting PostgreSQL and MySQL. This gem provides a clean DSL for creating temporary tables that mirror your source model, performing bulk inserts into them, and then transferring the data to the destination table using efficient SQL strategies.
+Handles mass data imports via temporary staging tables, supporting PostgreSQL, MySQL, and SQLite. This gem provides a clean DSL for creating temporary tables that mirror your source model, performing bulk inserts into them, and then transferring the data to the destination table using efficient SQL strategies.
 
 ## Installation
 
@@ -112,6 +112,7 @@ end
 
 - **PostgreSQL**: Uses `CREATE TABLE ... (LIKE ... INCLUDING DEFAULTS)` and `INSERT ... ON CONFLICT ...`
 - **MySQL**: Uses `CREATE TABLE ... LIKE ...` and `INSERT ... ON DUPLICATE KEY UPDATE ...`
+- **SQLite**: Copies table structure from `sqlite_master` and uses `INSERT ... ON CONFLICT ...` for upserts
 
 ## Development
 
@@ -119,7 +120,7 @@ After checking out the repo, run `bundle install` to install dependencies.
 
 ### Running Tests
 
-The test suite requires PostgreSQL and/or MySQL databases. Configure the connection via environment variables:
+The test suite supports PostgreSQL, MySQL, and SQLite databases. SQLite tests run automatically (using an in-memory database). For PostgreSQL and MySQL, configure the connection via environment variables:
 
 ```bash
 # PostgreSQL
@@ -151,6 +152,12 @@ Run only MySQL tests:
 
 ```bash
 bundle exec rake spec:mysql
+```
+
+Run only SQLite tests:
+
+```bash
+bundle exec rspec --tag sqlite
 ```
 
 ## Contributing

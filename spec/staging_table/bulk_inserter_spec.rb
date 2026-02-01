@@ -93,4 +93,8 @@ RSpec.describe StagingTable::BulkInserter do
   context "with MySQL", :mysql do
     include_examples "bulk inserter"
   end
+
+  context "with SQLite", :sqlite do
+    include_examples "bulk inserter"
+  end
 end

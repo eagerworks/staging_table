@@ -153,4 +153,39 @@ RSpec.describe StagingTable::Session do
   context "with MySQL", :mysql do
     include_examples "session"
   end
+
+  context "with SQLite", :sqlite do
+    include_examples "session"
+
+    describe "with options" do
+      it "respects excluded_columns option" do
+        session = described_class.new(TestUser, excluded_columns: %w[created_at updated_at])
+        session.create_table
+
+        expect(session.staging_model.ignored_columns).to include("created_at", "updated_at")
+
+        session.drop_table
+      end
+
+      it "respects transfer_strategy option" do
+        TestUser.delete_all
+        TestUser.create!(name: "Existing", email: "test@example.com")
+
+        session = described_class.new(TestUser,
+          excluded_columns: %w[id],
+          transfer_strategy: :upsert,
+          conflict_target: [:email],
+          conflict_action: :update)
+        session.create_table
+        session.insert([{name: "Updated", email: "test@example.com"}])
+        session.transfer
+
+        expect(TestUser.count).to eq(1)
+        expect(TestUser.first.name).to eq("Updated")
+
+        session.drop_table
+        TestUser.delete_all
+      end
+    end
+  end
 end

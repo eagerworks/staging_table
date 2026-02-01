@@ -60,4 +60,8 @@ RSpec.describe StagingTable::TransferStrategies::Insert do
   context "with MySQL", :mysql do
     include_examples "insert strategy"
   end
+
+  context "with SQLite", :sqlite do
+    include_examples "insert strategy"
+  end
 end

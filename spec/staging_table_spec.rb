@@ -120,4 +120,8 @@ RSpec.describe StagingTable do
   context "with MySQL", :mysql do
     include_examples "staging table integration"
   end
+
+  context "with SQLite", :sqlite do
+    include_examples "staging table integration"
+  end
 end

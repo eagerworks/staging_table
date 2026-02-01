@@ -15,8 +15,10 @@ module StagingTable
           postgresql_upsert
         when /mysql/
           mysql_upsert
+        when /sqlite/
+          sqlite_upsert
         else
-          raise AdapterError, "Upsert strategy not supported for adapter: #{adapter_name}. Supported adapters are PostgreSQL and MySQL."
+          raise AdapterError, "Upsert strategy not supported for adapter: #{adapter_name}. Supported adapters are PostgreSQL, MySQL, and SQLite."
         end
       end
 
@@ -62,6 +64,41 @@ module StagingTable
         end
 
         @connection.execute(sql)
+      end
+
+      def sqlite_upsert
+        conflict_target = Array(@options[:conflict_target])
+        if conflict_target.empty?
+          raise ConfigurationError, "SQLite upsert requires :conflict_target option specifying the unique constraint columns. Example: transfer_strategy: :upsert, conflict_target: [:email]"
+        end
+
+        columns = column_names.map { |c| quote_column(c) }.join(", ")
+        source_table = quote_table(@source_model.table_name)
+        staging_table = quote_table(@staging_model.table_name)
+
+        # SQLite's ON CONFLICT upsert clause only works with VALUES, not SELECT.
+        # For :ignore, we can use INSERT OR IGNORE with SELECT.
+        # For :update, we need to iterate over records and use individual upserts.
+        if @options[:conflict_action] == :ignore
+          sql = "INSERT OR IGNORE INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table}"
+          @connection.execute(sql)
+        else
+          conflict_target_sql = conflict_target.map { |c| quote_column(c) }.join(", ")
+          updates = column_names.reject { |c| conflict_target.map(&:to_s).include?(c.to_s) || c == "id" }
+            .map { |c| "#{quote_column(c)} = excluded.#{quote_column(c)}" }.join(", ")
+
+          # Build individual upsert statements for each record
+          @staging_model.all.each do |record|
+            values_sql = column_names.map { |c| quote(record[c]) }.join(", ")
+            upsert_sql = "INSERT INTO #{source_table} (#{columns}) VALUES (#{values_sql}) " \
+                         "ON CONFLICT (#{conflict_target_sql}) DO UPDATE SET #{updates}"
+            @connection.execute(upsert_sql)
+          end
+        end
+      end
+
+      def quote(value)
+        @connection.quote(value)
       end
 
       def column_names

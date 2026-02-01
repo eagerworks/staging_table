@@ -50,4 +50,13 @@ RSpec.configure do |config|
       example.run
     end
   end
+
+  config.around(:each, :sqlite) do |example|
+    unless DatabaseHelper.sqlite_available?
+      skip "SQLite not available"
+    end
+    DatabaseHelper.with_sqlite_connection do
+      example.run
+    end
+  end
 end

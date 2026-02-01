@@ -23,8 +23,10 @@ module StagingTable
           Postgresql.new(connection)
         when /mysql/
           Mysql.new(connection)
+        when /sqlite/
+          Sqlite.new(connection)
         else
-          raise AdapterError, "Unsupported adapter: #{adapter_name}. StagingTable supports PostgreSQL and MySQL adapters."
+          raise AdapterError, "Unsupported adapter: #{adapter_name}. StagingTable supports PostgreSQL, MySQL, and SQLite adapters."
         end
       end
     end

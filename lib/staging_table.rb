@@ -8,6 +8,7 @@ require "staging_table/bulk_inserter"
 require "staging_table/adapters/base"
 require "staging_table/adapters/postgresql"
 require "staging_table/adapters/mysql"
+require "staging_table/adapters/sqlite"
 require "staging_table/transfer_strategies/insert"
 require "staging_table/transfer_strategies/upsert"
 

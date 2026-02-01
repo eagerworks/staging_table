@@ -125,4 +125,8 @@ RSpec.describe StagingTable::TransferStrategies::Upsert do
   context "with MySQL", :mysql do
     include_examples "upsert strategy"
   end
+
+  context "with SQLite", :sqlite do
+    include_examples "upsert strategy"
+  end
 end
