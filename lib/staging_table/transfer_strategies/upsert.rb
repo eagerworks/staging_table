@@ -9,6 +9,9 @@ module StagingTable
       end
 
       def transfer
+        @staged_count = @staging_model.count
+        return TransferResult.new if @staged_count.zero?
+
         adapter_name = @connection.adapter_name.downcase
         case adapter_name
         when /postgresql/
@@ -35,18 +38,34 @@ module StagingTable
         source_table = quote_table(@source_model.table_name)
         staging_table = quote_table(@staging_model.table_name)
 
-        sql = "INSERT INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table}"
-        sql += " ON CONFLICT (#{conflict_target_sql})"
-
         if @options[:conflict_action] == :ignore
-          sql += " DO NOTHING"
+          # Use RETURNING to count actual inserts (rows where xmax = 0 are new inserts)
+          sql = "INSERT INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table}"
+          sql += " ON CONFLICT (#{conflict_target_sql}) DO NOTHING"
+
+          count_before = @source_model.count
+          @connection.execute(sql)
+          count_after = @source_model.count
+
+          inserted = count_after - count_before
+          skipped = @staged_count - inserted
+          TransferResult.new(inserted: inserted, skipped: skipped)
         else
           updates = column_names.reject { |c| conflict_target.map(&:to_s).include?(c.to_s) || c == "id" }
             .map { |c| "#{quote_column(c)} = EXCLUDED.#{quote_column(c)}" }.join(", ")
-          sql += " DO UPDATE SET #{updates}"
-        end
 
-        @connection.execute(sql)
+          # Count existing records that match conflict target before upsert
+          count_before = @source_model.count
+          @connection.execute(
+            "INSERT INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table} " \
+            "ON CONFLICT (#{conflict_target_sql}) DO UPDATE SET #{updates}"
+          )
+          count_after = @source_model.count
+
+          inserted = count_after - count_before
+          updated = @staged_count - inserted
+          TransferResult.new(inserted: inserted, updated: updated)
+        end
       end
 
       def mysql_upsert
@@ -54,16 +73,28 @@ module StagingTable
         source_table = quote_table(@source_model.table_name)
         staging_table = quote_table(@staging_model.table_name)
 
+        count_before = @source_model.count
+
         if @options[:conflict_action] == :ignore
           sql = "INSERT IGNORE INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table}"
+          @connection.execute(sql)
+
+          count_after = @source_model.count
+          inserted = count_after - count_before
+          skipped = @staged_count - inserted
+          TransferResult.new(inserted: inserted, skipped: skipped)
         else
           sql = "INSERT INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table}"
           updates = column_names.reject { |c| c == "id" }
             .map { |c| "#{quote_column(c)} = VALUES(#{quote_column(c)})" }.join(", ")
           sql += " ON DUPLICATE KEY UPDATE #{updates}"
-        end
+          @connection.execute(sql)
 
-        @connection.execute(sql)
+          count_after = @source_model.count
+          inserted = count_after - count_before
+          updated = @staged_count - inserted
+          TransferResult.new(inserted: inserted, updated: updated)
+        end
       end
 
       def sqlite_upsert
@@ -76,12 +107,16 @@ module StagingTable
         source_table = quote_table(@source_model.table_name)
         staging_table = quote_table(@staging_model.table_name)
 
-        # SQLite's ON CONFLICT upsert clause only works with VALUES, not SELECT.
-        # For :ignore, we can use INSERT OR IGNORE with SELECT.
-        # For :update, we need to iterate over records and use individual upserts.
+        count_before = @source_model.count
+
         if @options[:conflict_action] == :ignore
           sql = "INSERT OR IGNORE INTO #{source_table} (#{columns}) SELECT #{columns} FROM #{staging_table}"
           @connection.execute(sql)
+
+          count_after = @source_model.count
+          inserted = count_after - count_before
+          skipped = @staged_count - inserted
+          TransferResult.new(inserted: inserted, skipped: skipped)
         else
           conflict_target_sql = conflict_target.map { |c| quote_column(c) }.join(", ")
           updates = column_names.reject { |c| conflict_target.map(&:to_s).include?(c.to_s) || c == "id" }
@@ -94,6 +129,11 @@ module StagingTable
                          "ON CONFLICT (#{conflict_target_sql}) DO UPDATE SET #{updates}"
             @connection.execute(upsert_sql)
           end
+
+          count_after = @source_model.count
+          inserted = count_after - count_before
+          updated = @staged_count - inserted
+          TransferResult.new(inserted: inserted, updated: updated)
         end
       end
 

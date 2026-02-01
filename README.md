@@ -111,6 +111,50 @@ StagingTable.stage(User,
 end
 ```
 
+### 📊 Transfer Results
+
+Every transfer returns a `TransferResult` with detailed statistics:
+
+```ruby
+result = StagingTable.stage(User) do |staging|
+  staging.insert(records)
+end
+
+puts result.inserted  # => 450  (new records)
+puts result.updated   # => 50   (updated via upsert)
+puts result.skipped   # => 10   (ignored conflicts)
+puts result.total     # => 510  (total processed)
+puts result.success?  # => true (any inserts or updates?)
+
+# Also available as a hash
+result.to_h # => { inserted: 450, updated: 50, skipped: 10, total: 510 }
+```
+
+### 🪝 Callbacks
+
+Hook into the staging lifecycle to validate, transform, or log:
+
+```ruby
+StagingTable.stage(User,
+  before_insert: ->(session) {
+    Rails.logger.info "Starting import..."
+  },
+  after_insert: ->(session, records) {
+    Rails.logger.info "Staged #{records.count} records"
+  },
+  before_transfer: ->(session) {
+    # Clean up invalid data before transfer
+    session.where(email: nil).delete_all
+    session.where(status: 'banned').delete_all
+  },
+  after_transfer: ->(session, result) {
+    Rails.logger.info "Imported #{result.inserted} new, updated #{result.updated}"
+  }
+) do |staging|
+  staging.insert(records)
+end
+```
+
 ### 🎛️ Manual Control
 
 Need to keep the staging table alive across multiple background jobs? We got you.
@@ -133,7 +177,8 @@ begin
   end
   
   # Commit to the real table
-  session.transfer
+  result = session.transfer
+  puts "Transferred #{result.total} records"
 ensure
   # Always clean up your mess
   session.drop_table

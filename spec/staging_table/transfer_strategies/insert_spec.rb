@@ -50,6 +50,29 @@ RSpec.describe StagingTable::TransferStrategies::Insert do
         expect { strategy.transfer }.not_to raise_error
         expect(TestUser.count).to eq(0)
       end
+
+      it "returns a TransferResult with inserted count" do
+        records = [
+          {name: "John", email: "john@example.com", age: 30},
+          {name: "Jane", email: "jane@example.com", age: 25}
+        ]
+        inserter.insert(records)
+
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(2)
+        expect(result.updated).to eq(0)
+        expect(result.skipped).to eq(0)
+        expect(result.total).to eq(2)
+      end
+
+      it "returns an empty TransferResult when staging table is empty" do
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.empty?).to be true
+      end
     end
   end
 

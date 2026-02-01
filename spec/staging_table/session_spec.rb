@@ -97,6 +97,26 @@ RSpec.describe StagingTable::Session do
         expect(TestUser.count).to eq(1)
         expect(TestUser.first.name).to eq("John")
       end
+
+      it "returns a TransferResult with statistics" do
+        session.insert([
+          {name: "John", email: "john@example.com"},
+          {name: "Jane", email: "jane@example.com"}
+        ])
+
+        result = session.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(2)
+        expect(result.total).to eq(2)
+      end
+
+      it "returns an empty TransferResult when no records staged" do
+        result = session.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.empty?).to be true
+      end
     end
 
     describe "method delegation to staging_model" do
@@ -111,6 +131,83 @@ RSpec.describe StagingTable::Session do
         expect(session.count).to eq(2)
         expect(session.where(name: "John").count).to eq(1)
         expect(session.pluck(:name)).to match_array(%w[John Jane])
+      end
+    end
+
+    describe "callbacks" do
+      it "calls before_insert callback" do
+        callback_called = false
+        session_with_callback = described_class.new(TestUser,
+          before_insert: ->(s) { callback_called = true })
+        session_with_callback.create_table
+
+        session_with_callback.insert([{name: "John", email: "john@example.com"}])
+
+        expect(callback_called).to be true
+        session_with_callback.drop_table
+      end
+
+      it "calls after_insert callback with session and records" do
+        received_args = nil
+        session_with_callback = described_class.new(TestUser,
+          after_insert: ->(s, records) { received_args = [s, records] })
+        session_with_callback.create_table
+
+        session_with_callback.insert([{name: "John", email: "john@example.com"}])
+
+        expect(received_args).not_to be_nil
+        expect(received_args[0]).to eq(session_with_callback)
+        expect(received_args[1]).to be_an(Array)
+        # Records can have string or symbol keys depending on source
+        record = received_args[1].first
+        expect(record[:name] || record["name"]).to eq("John")
+        session_with_callback.drop_table
+      end
+
+      it "calls before_transfer callback" do
+        callback_called = false
+        session_with_callback = described_class.new(TestUser,
+          before_transfer: ->(s) { callback_called = true })
+        session_with_callback.create_table
+        session_with_callback.insert([{name: "John", email: "john@example.com"}])
+
+        session_with_callback.transfer
+
+        expect(callback_called).to be true
+        session_with_callback.drop_table
+      end
+
+      it "calls after_transfer callback with session and result" do
+        received_args = nil
+        session_with_callback = described_class.new(TestUser,
+          after_transfer: ->(s, result) { received_args = [s, result] })
+        session_with_callback.create_table
+        session_with_callback.insert([{name: "John", email: "john@example.com"}])
+
+        session_with_callback.transfer
+
+        expect(received_args).not_to be_nil
+        expect(received_args[0]).to eq(session_with_callback)
+        expect(received_args[1]).to be_a(StagingTable::TransferResult)
+        expect(received_args[1].inserted).to eq(1)
+        session_with_callback.drop_table
+      end
+
+      it "allows modifying staged data in before_transfer callback" do
+        session_with_callback = described_class.new(TestUser,
+          before_transfer: ->(s) { s.where(name: "Invalid").delete_all })
+        session_with_callback.create_table
+        session_with_callback.insert([
+          {name: "John", email: "john@example.com"},
+          {name: "Invalid", email: "invalid@example.com"}
+        ])
+
+        result = session_with_callback.transfer
+
+        expect(TestUser.count).to eq(1)
+        expect(TestUser.first.name).to eq("John")
+        expect(result.inserted).to eq(1)
+        session_with_callback.drop_table
       end
     end
   end

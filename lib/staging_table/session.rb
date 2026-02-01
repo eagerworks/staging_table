@@ -4,13 +4,21 @@ module StagingTable
   class Session
     attr_reader :source_model, :staging_model, :options
 
+    # Supported callback options:
+    #   - before_insert: ->(session) { ... }
+    #   - after_insert: ->(session, records) { ... }
+    #   - before_transfer: ->(session) { ... }
+    #   - after_transfer: ->(session, result) { ... }
+    CALLBACK_OPTIONS = %i[before_insert after_insert before_transfer after_transfer].freeze
+
     def initialize(source_model, **options)
       @source_model = source_model
       config = StagingTable.configuration
+      @callbacks = options.slice(*CALLBACK_OPTIONS)
       @options = {
         batch_size: config.default_batch_size,
         transfer_strategy: config.default_transfer_strategy
-      }.merge(options)
+      }.merge(options.except(*CALLBACK_OPTIONS))
       @table_created = false
     end
 
@@ -32,28 +40,49 @@ module StagingTable
 
     def insert(records)
       ensure_table_created!
+
+      run_callback(:before_insert, self)
+
       normalized_records = normalize_records(records)
       BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(normalized_records)
+
+      run_callback(:after_insert, self, normalized_records)
     end
 
     def insert_from_query(relation)
       ensure_table_created!
+
+      run_callback(:before_insert, self)
+
       # TODO: Implement direct INSERT INTO SELECT for query-based insertion
       # For now, we'll iterate, but this should be optimized
+      all_records = []
       relation.find_in_batches(batch_size: options[:batch_size] || 1000) do |batch|
-        insert(batch.map(&:attributes))
+        records = batch.map(&:attributes)
+        all_records.concat(records)
+        BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(records)
       end
+
+      run_callback(:after_insert, self, all_records)
     end
 
     def transfer
       ensure_table_created!
+
+      run_callback(:before_transfer, self)
+
       strategy_name = options[:transfer_strategy].to_s.camelize
       begin
         strategy_class = TransferStrategies.const_get(strategy_name)
       rescue NameError
         raise ConfigurationError, "Invalid transfer strategy: #{options[:transfer_strategy]}. Available strategies: insert, upsert."
       end
-      strategy_class.new(source_model, staging_model, options).transfer
+
+      result = strategy_class.new(source_model, staging_model, options).transfer
+
+      run_callback(:after_transfer, self, result)
+
+      result
     end
 
     # Delegate unknown methods to the staging model (e.g. for querying)
@@ -70,6 +99,13 @@ module StagingTable
     end
 
     private
+
+    def run_callback(name, *args)
+      callback = @callbacks[name]
+      return unless callback
+
+      callback.call(*args)
+    end
 
     def adapter
       @adapter ||= Adapters::Base.for(source_model.connection)

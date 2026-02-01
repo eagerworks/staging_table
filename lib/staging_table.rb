@@ -2,6 +2,7 @@ require "active_record"
 require "staging_table/version"
 require "staging_table/errors"
 require "staging_table/configuration"
+require "staging_table/transfer_result"
 require "staging_table/session"
 require "staging_table/model_factory"
 require "staging_table/bulk_inserter"
@@ -22,6 +23,22 @@ module StagingTable
       yield(configuration)
     end
 
+    # Stage data for bulk import into a model's table.
+    #
+    # @param source_model [Class] The ActiveRecord model to stage data for
+    # @param options [Hash] Configuration options
+    # @option options [Integer] :batch_size Number of records per batch (default: 1000)
+    # @option options [Symbol] :transfer_strategy :insert or :upsert (default: :insert)
+    # @option options [Array<Symbol>] :conflict_target Columns for upsert conflict detection
+    # @option options [Symbol] :conflict_action :update or :ignore for upsert conflicts
+    # @option options [Proc] :before_insert Called before inserting into staging
+    # @option options [Proc] :after_insert Called after inserting into staging
+    # @option options [Proc] :before_transfer Called before transferring to target
+    # @option options [Proc] :after_transfer Called after transferring to target
+    #
+    # @yield [session] Block for staging operations
+    # @yieldparam session [Session] The staging session
+    # @return [TransferResult, Session] TransferResult when block given, Session otherwise
     def stage(source_model, **options, &block)
       session = Session.new(source_model, **options)
       session.create_table

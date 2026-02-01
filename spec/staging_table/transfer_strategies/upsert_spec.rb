@@ -65,6 +65,51 @@ RSpec.describe StagingTable::TransferStrategies::Upsert do
         expect(TestUser.find_by(email: "existing@example.com").name).to eq("Updated Existing")
         expect(TestUser.find_by(email: "new@example.com").name).to eq("Brand New")
       end
+
+      it "returns a TransferResult with insert count for new records" do
+        records = [
+          {name: "John", email: "john@example.com", age: 30}
+        ]
+        inserter.insert(records)
+
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(1)
+        expect(result.updated).to eq(0)
+      end
+
+      it "returns a TransferResult with update count for existing records" do
+        TestUser.create!(name: "Old John", email: "john@example.com", age: 25)
+
+        records = [
+          {name: "New John", email: "john@example.com", age: 35}
+        ]
+        inserter.insert(records)
+
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(0)
+        expect(result.updated).to eq(1)
+      end
+
+      it "returns a TransferResult with mixed insert and update counts" do
+        TestUser.create!(name: "Existing", email: "existing@example.com", age: 20)
+
+        records = [
+          {name: "Updated Existing", email: "existing@example.com", age: 21},
+          {name: "Brand New", email: "new@example.com", age: 30}
+        ]
+        inserter.insert(records)
+
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(1)
+        expect(result.updated).to eq(1)
+        expect(result.total).to eq(2)
+      end
     end
 
     describe "#transfer with :ignore action" do
@@ -114,6 +159,51 @@ RSpec.describe StagingTable::TransferStrategies::Upsert do
         expect(TestUser.count).to eq(2)
         expect(TestUser.find_by(email: "existing@example.com").name).to eq("Existing")
         expect(TestUser.find_by(email: "new@example.com").name).to eq("Brand New")
+      end
+
+      it "returns a TransferResult with insert count for new records" do
+        records = [
+          {name: "John", email: "john@example.com", age: 30}
+        ]
+        inserter.insert(records)
+
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(1)
+        expect(result.skipped).to eq(0)
+      end
+
+      it "returns a TransferResult with skipped count for conflicting records" do
+        TestUser.create!(name: "Original John", email: "john@example.com", age: 25)
+
+        records = [
+          {name: "New John", email: "john@example.com", age: 35}
+        ]
+        inserter.insert(records)
+
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(0)
+        expect(result.skipped).to eq(1)
+      end
+
+      it "returns a TransferResult with mixed insert and skipped counts" do
+        TestUser.create!(name: "Existing", email: "existing@example.com", age: 20)
+
+        records = [
+          {name: "Should Be Ignored", email: "existing@example.com", age: 99},
+          {name: "Brand New", email: "new@example.com", age: 30}
+        ]
+        inserter.insert(records)
+
+        result = strategy.transfer
+
+        expect(result).to be_a(StagingTable::TransferResult)
+        expect(result.inserted).to eq(1)
+        expect(result.skipped).to eq(1)
+        expect(result.total).to eq(2)
       end
     end
   end

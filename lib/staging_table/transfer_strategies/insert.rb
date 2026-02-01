@@ -9,6 +9,9 @@ module StagingTable
       end
 
       def transfer
+        staged_count = @staging_model.count
+        return TransferResult.new if staged_count.zero?
+
         columns = @staging_model.column_names.map { |c| @connection.quote_column_name(c) }.join(", ")
         source_table = @connection.quote_table_name(@source_model.table_name)
         staging_table = @connection.quote_table_name(@staging_model.table_name)
@@ -19,6 +22,9 @@ module StagingTable
         SQL
 
         @connection.execute(sql)
+
+        # For plain INSERT, all staged records are inserted (assuming no constraint violations)
+        TransferResult.new(inserted: staged_count)
       end
     end
   end
