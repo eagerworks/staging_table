@@ -25,17 +25,33 @@ module StagingTable
     def create_table
       return if @table_created
 
-      adapter.create_table(staging_table_name, source_model.table_name, options)
-      @staging_model = ModelFactory.build(source_model, staging_table_name, excluded_columns: options[:excluded_columns] || [])
-      @table_created = true
+      payload = {
+        source_model: source_model,
+        source_table: source_model.table_name,
+        staging_table: staging_table_name
+      }
+
+      Instrumentation.instrument(:create_table, payload) do
+        adapter.create_table(staging_table_name, source_model.table_name, options)
+        @staging_model = ModelFactory.build(source_model, staging_table_name, excluded_columns: options[:excluded_columns] || [])
+        @table_created = true
+      end
     end
 
     def drop_table
       return unless @table_created
 
-      adapter.drop_table(staging_table_name)
-      @table_created = false
-      @staging_model = nil
+      payload = {
+        source_model: source_model,
+        source_table: source_model.table_name,
+        staging_table: staging_table_name
+      }
+
+      Instrumentation.instrument(:drop_table, payload) do
+        adapter.drop_table(staging_table_name)
+        @table_created = false
+        @staging_model = nil
+      end
     end
 
     def insert(records)
@@ -44,7 +60,18 @@ module StagingTable
       run_callback(:before_insert, self)
 
       normalized_records = normalize_records(records)
-      BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(normalized_records)
+
+      payload = {
+        source_model: source_model,
+        source_table: source_model.table_name,
+        staging_table: staging_table_name,
+        record_count: normalized_records.size,
+        batch_size: options[:batch_size] || 1000
+      }
+
+      Instrumentation.instrument(:insert, payload) do
+        BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(normalized_records)
+      end
 
       run_callback(:after_insert, self, normalized_records)
     end
@@ -57,10 +84,21 @@ module StagingTable
       # TODO: Implement direct INSERT INTO SELECT for query-based insertion
       # For now, we'll iterate, but this should be optimized
       all_records = []
-      relation.find_in_batches(batch_size: options[:batch_size] || 1000) do |batch|
-        records = batch.map(&:attributes)
-        all_records.concat(records)
-        BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(records)
+
+      payload = {
+        source_model: source_model,
+        source_table: source_model.table_name,
+        staging_table: staging_table_name,
+        batch_size: options[:batch_size] || 1000
+      }
+
+      Instrumentation.instrument(:insert, payload) do |instrumentation_payload|
+        relation.find_in_batches(batch_size: options[:batch_size] || 1000) do |batch|
+          records = batch.map(&:attributes)
+          all_records.concat(records)
+          BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(records)
+        end
+        instrumentation_payload[:record_count] = all_records.size
       end
 
       run_callback(:after_insert, self, all_records)
@@ -78,7 +116,19 @@ module StagingTable
         raise ConfigurationError, "Invalid transfer strategy: #{options[:transfer_strategy]}. Available strategies: insert, upsert."
       end
 
-      result = strategy_class.new(source_model, staging_model, options).transfer
+      payload = {
+        source_model: source_model,
+        source_table: source_model.table_name,
+        staging_table: staging_table_name,
+        strategy: options[:transfer_strategy],
+        staged_count: staging_model.count
+      }
+
+      result = Instrumentation.instrument(:transfer, payload) do |instrumentation_payload|
+        transfer_result = strategy_class.new(source_model, staging_model, options).transfer
+        instrumentation_payload[:result] = transfer_result
+        transfer_result
+      end
 
       run_callback(:after_transfer, self, result)
 

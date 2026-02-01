@@ -155,6 +155,43 @@ StagingTable.stage(User,
 end
 ```
 
+### 📡 Instrumentation (ActiveSupport::Notifications)
+
+Monitor and debug your imports in production with built-in instrumentation:
+
+```ruby
+# Subscribe to transfer events
+StagingTable::Instrumentation.subscribe(:transfer) do |event|
+  Rails.logger.info "[StagingTable] Transfer to #{event.payload[:source_table]} " \
+                    "completed in #{event.duration.round(2)}ms"
+  StatsD.measure('staging_table.transfer.duration', event.duration)
+  StatsD.increment('staging_table.transfer.inserted', event.payload[:result].inserted)
+end
+
+# Subscribe to all StagingTable events
+StagingTable::Instrumentation.subscribe_all do |event|
+  Rails.logger.debug "[StagingTable] #{event.name}: #{event.duration.round(2)}ms"
+end
+```
+
+**Available Events:**
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `staging_table.stage` | `source_model`, `source_table`, `options`, `result` | Wraps the entire staging block |
+| `staging_table.create_table` | `source_model`, `source_table`, `staging_table` | When staging table is created |
+| `staging_table.insert` | `source_model`, `source_table`, `staging_table`, `record_count`, `batch_size` | When records are inserted |
+| `staging_table.transfer` | `source_model`, `source_table`, `staging_table`, `strategy`, `staged_count`, `result` | When data is transferred |
+| `staging_table.drop_table` | `source_model`, `source_table`, `staging_table` | When staging table is dropped |
+
+You can also use standard ActiveSupport::Notifications directly:
+
+```ruby
+ActiveSupport::Notifications.subscribe('staging_table.transfer') do |event|
+  # Your monitoring code here
+end
+```
+
 ### 🎛️ Manual Control
 
 Need to keep the staging table alive across multiple background jobs? We got you.

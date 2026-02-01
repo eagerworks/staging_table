@@ -2,6 +2,7 @@ require "active_record"
 require "staging_table/version"
 require "staging_table/errors"
 require "staging_table/configuration"
+require "staging_table/instrumentation"
 require "staging_table/transfer_result"
 require "staging_table/session"
 require "staging_table/model_factory"
@@ -41,16 +42,27 @@ module StagingTable
     # @return [TransferResult, Session] TransferResult when block given, Session otherwise
     def stage(source_model, **options, &block)
       session = Session.new(source_model, **options)
-      session.create_table
 
       if block
-        begin
-          yield(session)
-          session.transfer
-        ensure
-          session.drop_table
+        payload = {
+          source_model: source_model,
+          source_table: source_model.table_name,
+          options: options.except(*Session::CALLBACK_OPTIONS)
+        }
+
+        Instrumentation.instrument(:stage, payload) do |instrumentation_payload|
+          begin
+            session.create_table
+            yield(session)
+            result = session.transfer
+            instrumentation_payload[:result] = result
+            result
+          ensure
+            session.drop_table
+          end
         end
       else
+        session.create_table
         session
       end
     end
