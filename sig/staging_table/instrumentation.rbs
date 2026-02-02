@@ -1,0 +1,19 @@
+module StagingTable
+  # Provides ActiveSupport::Notifications instrumentation for StagingTable operations
+  module Instrumentation
+    NAMESPACE: String
+    EVENTS: Array[Symbol]
+
+    # Instruments a block with the given event name
+    def self.instrument: [T] (Symbol event_name, ?Hash[Symbol, untyped] payload) { (?Hash[Symbol, untyped]) -> T } -> T
+
+    # Subscribe to a StagingTable event
+    def self.subscribe: (Symbol | String event_name) { (ActiveSupport::Notifications::Event) -> void } -> ActiveSupport::Notifications::Fanout::Subscribers::Evented
+
+    # Unsubscribe from a StagingTable event
+    def self.unsubscribe: (untyped subscriber) -> void
+
+    # Subscribe to all StagingTable events
+    def self.subscribe_all: () { (ActiveSupport::Notifications::Event) -> void } -> ActiveSupport::Notifications::Fanout::Subscribers::Evented
+  end
+end

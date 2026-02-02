@@ -1,0 +1,16 @@
+module StagingTable
+  class BulkInserter
+    attr_reader model: singleton(ActiveRecord::Base)
+    attr_reader batch_size: Integer
+
+    def initialize: (singleton(ActiveRecord::Base) model, ?batch_size: Integer) -> void
+
+    # Insert records in batches
+    def insert: (Array[Hash[String | Symbol, untyped]] records) -> void
+
+    private
+
+    def connection: () -> ActiveRecord::ConnectionAdapters::AbstractAdapter
+    def quote: (untyped value) -> String
+  end
+end

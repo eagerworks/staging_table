@@ -1,0 +1,25 @@
+module StagingTable
+  # Base error class for all StagingTable errors
+  class Error < StandardError
+  end
+
+  # Raised when configuration options are invalid
+  class ConfigurationError < Error
+  end
+
+  # Raised when the database adapter is not supported
+  class AdapterError < Error
+  end
+
+  # Raised when staging table operations fail
+  class TableError < Error
+  end
+
+  # Raised when transfer strategy fails or is misconfigured
+  class TransferError < Error
+  end
+
+  # Raised when record data is invalid for insertion
+  class RecordError < Error
+  end
+end

@@ -1,0 +1,6 @@
+module StagingTable
+  class ModelFactory
+    # Build a dynamic staging model class based on the source model
+    def self.build: (singleton(ActiveRecord::Base) source_model, String table_name, ?excluded_columns: Array[Symbol | String]) -> singleton(ActiveRecord::Base)
+  end
+end

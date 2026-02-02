@@ -34,3 +34,7 @@ tmp/
 *.tmp
 
 Gemfile.lock
+
+# RBS type collection
+.gem_rbs_collection/
+rbs_collection.lock.yaml

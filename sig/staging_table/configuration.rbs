@@ -1,0 +1,8 @@
+module StagingTable
+  class Configuration
+    attr_accessor default_batch_size: Integer
+    attr_accessor default_transfer_strategy: Symbol
+
+    def initialize: () -> void
+  end
+end

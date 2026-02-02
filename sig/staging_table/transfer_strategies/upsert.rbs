@@ -1,0 +1,26 @@
+module StagingTable
+  module TransferStrategies
+    class Upsert
+      @source_model: singleton(ActiveRecord::Base)
+      @staging_model: singleton(ActiveRecord::Base)
+      @options: Hash[Symbol, untyped]
+      @connection: ActiveRecord::ConnectionAdapters::AbstractAdapter
+      @staged_count: Integer
+
+      def initialize: (singleton(ActiveRecord::Base) source_model, singleton(ActiveRecord::Base) staging_model, ?Hash[Symbol, untyped] options) -> void
+
+      # Transfer staged records with upsert semantics (insert or update)
+      def transfer: () -> TransferResult
+
+      private
+
+      def postgresql_upsert: () -> TransferResult
+      def mysql_upsert: () -> TransferResult
+      def sqlite_upsert: () -> TransferResult
+      def quote: (untyped value) -> String
+      def column_names: () -> Array[String]
+      def quote_column: (String | Symbol name) -> String
+      def quote_table: (String name) -> String
+    end
+  end
+end

@@ -1,0 +1,9 @@
+# Type signatures for staging_table gem
+# See https://github.com/ruby/rbs for more information
+
+module StagingTable
+  def self.configuration: () -> Configuration
+  def self.configure: () { (Configuration) -> void } -> void
+  def self.stage: (singleton(ActiveRecord::Base) source_model, **untyped options) -> Session
+                | [T] (singleton(ActiveRecord::Base) source_model, **untyped options) { (Session) -> T } -> TransferResult
+end

@@ -1,0 +1,40 @@
+module StagingTable
+  class Session
+    # Supported callback options
+    CALLBACK_OPTIONS: Array[Symbol]
+
+    attr_reader source_model: singleton(ActiveRecord::Base)
+    attr_reader staging_model: singleton(ActiveRecord::Base)?
+    attr_reader options: Hash[Symbol, untyped]
+
+    def initialize: (singleton(ActiveRecord::Base) source_model, **untyped options) -> void
+
+    # Creates the staging table in the database
+    def create_table: () -> void
+
+    # Drops the staging table from the database
+    def drop_table: () -> void
+
+    # Insert records into the staging table
+    def insert: (Array[Hash[String | Symbol, untyped]] | ActiveRecord::Relation records) -> void
+
+    # Insert records from an ActiveRecord relation
+    def insert_from_query: (ActiveRecord::Relation relation) -> void
+
+    # Transfer staged data to the target table
+    def transfer: () -> TransferResult
+
+    # Delegate unknown methods to staging_model
+    def method_missing: (Symbol method, *untyped args) ?{ (*untyped) -> untyped } -> untyped
+
+    def respond_to_missing?: (Symbol method, ?bool include_private) -> bool
+
+    private
+
+    def run_callback: (Symbol name, *untyped args) -> void
+    def adapter: () -> Adapters::Base
+    def staging_table_name: () -> String
+    def ensure_table_created!: () -> void
+    def normalize_records: (untyped records) -> Array[Hash[String, untyped]]
+  end
+end

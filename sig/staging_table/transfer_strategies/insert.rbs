@@ -1,0 +1,15 @@
+module StagingTable
+  module TransferStrategies
+    class Insert
+      @source_model: singleton(ActiveRecord::Base)
+      @staging_model: singleton(ActiveRecord::Base)
+      @options: Hash[Symbol, untyped]
+      @connection: ActiveRecord::ConnectionAdapters::AbstractAdapter
+
+      def initialize: (singleton(ActiveRecord::Base) source_model, singleton(ActiveRecord::Base) staging_model, ?Hash[Symbol, untyped] options) -> void
+
+      # Transfer all staged records to the target table
+      def transfer: () -> TransferResult
+    end
+  end
+end

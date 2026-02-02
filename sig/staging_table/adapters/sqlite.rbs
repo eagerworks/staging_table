@@ -1,0 +1,11 @@
+module StagingTable
+  module Adapters
+    class Sqlite < Base
+      def create_table: (String temp_table_name, String source_table_name, ?Hash[Symbol, untyped] options) -> void
+
+      private
+
+      def copy_indexes: (String temp_table_name, String source_table_name) -> void
+    end
+  end
+end

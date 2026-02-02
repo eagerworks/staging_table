@@ -1,0 +1,7 @@
+module StagingTable
+  module Adapters
+    class Mysql < Base
+      def create_table: (String temp_table_name, String source_table_name, ?Hash[Symbol, untyped] options) -> void
+    end
+  end
+end

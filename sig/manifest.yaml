@@ -1,0 +1,5 @@
+# RBS manifest file
+# Defines gem dependencies for type checking
+dependencies:
+  - name: activerecord
+  - name: activesupport

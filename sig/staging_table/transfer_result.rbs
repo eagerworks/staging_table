@@ -1,0 +1,22 @@
+module StagingTable
+  # Holds statistics about a transfer operation
+  class TransferResult
+    attr_reader inserted: Integer
+    attr_reader updated: Integer
+    attr_reader skipped: Integer
+    attr_reader total: Integer
+
+    def initialize: (?inserted: Integer, ?updated: Integer, ?skipped: Integer) -> void
+
+    # Returns a hash representation of the result
+    def to_h: () -> Hash[Symbol, Integer]
+
+    # Returns true if any records were inserted or updated
+    def success?: () -> bool
+
+    # Returns true if no records were processed
+    def empty?: () -> bool
+
+    def inspect: () -> String
+  end
+end

@@ -4,6 +4,7 @@
 
 [![Gem Version](https://badge.fury.io/rb/staging_table.svg)](https://badge.fury.io/rb/staging_table)
 [![Test Status](https://github.com/eagerworks/staging_table/actions/workflows/test.yml/badge.svg)](https://github.com/eagerworks/staging_table/actions)
+[![RBS](https://github.com/eagerworks/staging_table/actions/workflows/rbs.yml/badge.svg)](https://github.com/eagerworks/staging_table/actions/workflows/rbs.yml)
 
 Stop shoving data directly into your production tables like a savage. Give it a dressing room first! 
 
@@ -233,6 +234,48 @@ StagingTable.configure do |config|
   config.default_batch_size = 2000
   config.default_transfer_strategy = :insert # or :upsert
 end
+```
+
+---
+
+## 🔍 Type Checking (RBS)
+
+This gem ships with [RBS](https://github.com/ruby/rbs) type signatures for static type checking. The signatures are located in the `sig/` directory and are validated in CI.
+
+### Using the Type Signatures
+
+If you want to type-check your own code that uses StagingTable:
+
+```bash
+# Install RBS and the collection for dependencies
+gem install rbs
+rbs collection install
+
+# Validate signatures
+rbs -I sig validate
+```
+
+### Using with Steep
+
+For full type checking with [Steep](https://github.com/soutaro/steep):
+
+```ruby
+# Gemfile
+gem 'steep', group: :development
+```
+
+```ruby
+# Steepfile
+target :lib do
+  signature "sig"
+  check "lib"
+  library "activerecord"
+  library "activesupport"
+end
+```
+
+```bash
+bundle exec steep check
 ```
 
 ---
