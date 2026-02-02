@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module StagingTable
   class BulkInserter
     attr_reader :model, :batch_size

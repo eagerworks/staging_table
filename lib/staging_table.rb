@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "active_record"
 require "staging_table/version"
 require "staging_table/errors"

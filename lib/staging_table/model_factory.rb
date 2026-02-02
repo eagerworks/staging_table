@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module StagingTable
   class ModelFactory
     def self.build(source_model, table_name, excluded_columns: [])

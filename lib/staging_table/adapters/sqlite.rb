@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module StagingTable
   module Adapters
     class Sqlite < Base
