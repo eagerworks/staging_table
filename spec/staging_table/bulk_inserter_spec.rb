@@ -88,12 +88,40 @@ RSpec.describe StagingTable::BulkInserter do
     end
   end
 
+  shared_examples "bulk inserter with JSON support" do
+    describe "#insert with JSON" do
+      it "handles array values for JSON/JSONB columns" do
+        records = [
+          {name: "John", email: "john@example.com", tags: %w[admin user]}
+        ]
+
+        inserter.insert(records)
+
+        user = staging_model.first
+        expect(user.tags).to eq(%w[admin user])
+      end
+
+      it "handles hash values for JSON/JSONB columns" do
+        records = [
+          {name: "John", email: "john@example.com", metadata: {role: "admin", level: 5}}
+        ]
+
+        inserter.insert(records)
+
+        user = staging_model.first
+        expect(user.metadata).to eq({"role" => "admin", "level" => 5})
+      end
+    end
+  end
+
   context "with PostgreSQL", :postgresql do
     include_examples "bulk inserter"
+    include_examples "bulk inserter with JSON support"
   end
 
   context "with MySQL", :mysql do
     include_examples "bulk inserter"
+    include_examples "bulk inserter with JSON support"
   end
 
   context "with SQLite", :sqlite do

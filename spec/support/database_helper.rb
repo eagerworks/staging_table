@@ -187,6 +187,8 @@ module DatabaseHelper
         DROP TABLE IF EXISTS test_users
       SQL
 
+      json_type = /postgresql/.match?(ActiveRecord::Base.connection.adapter_name.downcase) ? "JSONB" : "JSON"
+
       ActiveRecord::Base.connection.execute(<<~SQL)
         CREATE TABLE test_users (
           id SERIAL PRIMARY KEY,
@@ -194,6 +196,8 @@ module DatabaseHelper
           email VARCHAR(255),
           age INTEGER,
           active BOOLEAN DEFAULT true,
+          tags #{json_type},
+          metadata #{json_type},
           created_at TIMESTAMP,
           updated_at TIMESTAMP
         )
@@ -219,6 +223,8 @@ module DatabaseHelper
           email VARCHAR(255),
           age INTEGER,
           active BOOLEAN DEFAULT 1,
+          tags TEXT,
+          metadata TEXT,
           created_at DATETIME,
           updated_at DATETIME
         )
