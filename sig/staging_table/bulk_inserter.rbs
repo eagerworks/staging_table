@@ -10,6 +10,10 @@ module StagingTable
 
     private
 
+    TIMESTAMP_COLUMNS: Array[String]
+
+    def apply_timestamps: (Array[Hash[String | Symbol, untyped]] records) -> Array[Hash[String | Symbol, untyped]]
+    def record_has_key?: (Hash[String | Symbol, untyped] record, String key) -> bool
     def connection: () -> ActiveRecord::ConnectionAdapters::AbstractAdapter
     def quote: (untyped value) -> String
   end

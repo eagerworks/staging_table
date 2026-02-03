@@ -85,6 +85,47 @@ RSpec.describe StagingTable::BulkInserter do
         user = staging_model.first
         expect(user.created_at).to be_within(1.second).of(now)
       end
+
+      it "automatically sets created_at and updated_at when not provided" do
+        records = [
+          {name: "John", email: "john@example.com"}
+        ]
+
+        freeze_time = Time.current
+        allow(Time).to receive(:current).and_return(freeze_time)
+
+        inserter.insert(records)
+
+        user = staging_model.first
+        expect(user.created_at).to be_within(1.second).of(freeze_time)
+        expect(user.updated_at).to be_within(1.second).of(freeze_time)
+      end
+
+      it "does not override provided timestamps" do
+        custom_time = 1.day.ago
+        records = [
+          {name: "John", email: "john@example.com", created_at: custom_time, updated_at: custom_time}
+        ]
+
+        inserter.insert(records)
+
+        user = staging_model.first
+        expect(user.created_at).to be_within(1.second).of(custom_time)
+        expect(user.updated_at).to be_within(1.second).of(custom_time)
+      end
+
+      it "handles string keys for timestamps" do
+        custom_time = 2.days.ago
+        records = [
+          {"name" => "John", "email" => "john@example.com", "created_at" => custom_time, "updated_at" => custom_time}
+        ]
+
+        inserter.insert(records)
+
+        user = staging_model.first
+        expect(user.created_at).to be_within(1.second).of(custom_time)
+        expect(user.updated_at).to be_within(1.second).of(custom_time)
+      end
     end
   end
 

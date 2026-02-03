@@ -18,6 +18,8 @@ module StagingTable
         raise RecordError, "All records must be hashes. If passing ActiveRecord objects, use Session#insert which normalizes them automatically."
       end
 
+      records = apply_timestamps(records)
+
       columns = records.first.keys.map(&:to_s)
       quoted_columns = columns.map { |c| connection.quote_column_name(c) }.join(", ")
       quoted_table = connection.quote_table_name(model.table_name)
@@ -33,6 +35,32 @@ module StagingTable
     end
 
     private
+
+    TIMESTAMP_COLUMNS = %w[created_at updated_at].freeze
+
+    def apply_timestamps(records)
+      return records if records.empty?
+
+      sample_record = records.first
+      model_columns = model.column_names
+
+      missing_timestamps = TIMESTAMP_COLUMNS.select do |col|
+        model_columns.include?(col) && !record_has_key?(sample_record, col)
+      end
+
+      return records if missing_timestamps.empty?
+
+      now = Time.current
+      records.map do |record|
+        record = record.dup
+        missing_timestamps.each { |col| record[col.to_sym] = now }
+        record
+      end
+    end
+
+    def record_has_key?(record, key)
+      record.key?(key.to_sym) || record.key?(key.to_s)
+    end
 
     def connection
       model.connection
