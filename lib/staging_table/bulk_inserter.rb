@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module StagingTable
   class BulkInserter
     attr_reader :model, :batch_size
@@ -37,7 +39,12 @@ module StagingTable
     end
 
     def quote(value)
-      connection.quote(value)
+      case value
+      when Array, Hash
+        connection.quote(value.to_json)
+      else
+        connection.quote(value)
+      end
     end
   end
 end
