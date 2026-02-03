@@ -37,7 +37,12 @@ module StagingTable
     end
 
     def quote(value)
-      connection.quote(value)
+      case value
+      when Array, Hash
+        connection.quote(value.to_json)
+      else
+        connection.quote(value)
+      end
     end
   end
 end
