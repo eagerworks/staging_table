@@ -171,16 +171,30 @@ module StagingTable
       raise TableError, "Staging table has not been created. You must call #create_table or use StagingTable.stage with a block before inserting or transferring data." unless @table_created
     end
 
+    def normalizable?(records)
+      records.is_a?(ActiveRecord::Relation) || records.respond_to?(:to_a)
+    end
+
     def normalize_records(records)
-      if records.is_a?(ActiveRecord::Relation)
-        records.map(&:attributes)
-      elsif records.respond_to?(:to_a)
-        records.to_a.map do |record|
-          record.is_a?(ActiveRecord::Base) ? record.attributes : record
-        end
-      else
-        records
+      if normalizable?(records)
+        return records.map { |record| normalize_record(record) }
       end
+
+      records
+    end
+
+    def normalize_record(record)
+      return record unless record.is_a?(ActiveRecord::Base)
+
+      if record.respond_to?(:attributes_for_database)
+        return record.attributes_for_database
+      elsif record.respond_to?(:read_attribute_for_database)
+        return record.attributes.keys.each_with_object({}) do |attribute, normalized_attributes|
+          normalized[attribute] = record.read_attribute_for_database(attribute)
+        end
+      end
+
+      record.attributes_before_type_cast
     end
   end
 end
