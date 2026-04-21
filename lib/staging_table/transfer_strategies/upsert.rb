@@ -144,7 +144,8 @@ module StagingTable
       end
 
       def column_names
-        @staging_model.column_names
+        # Only transfer columns that exist on both staging and source tables
+        @staging_model.column_names & @source_model.column_names
       end
 
       def quote_column(name)

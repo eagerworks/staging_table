@@ -8,6 +8,7 @@ require "staging_table/instrumentation"
 require "staging_table/transfer_result"
 require "staging_table/session"
 require "staging_table/model_factory"
+require "staging_table/conflict_resolver"
 require "staging_table/bulk_inserter"
 require "staging_table/adapters/base"
 require "staging_table/adapters/postgresql"
@@ -34,6 +35,15 @@ module StagingTable
     # @option options [Symbol] :transfer_strategy :insert or :upsert (default: :insert)
     # @option options [Array<Symbol>] :conflict_target Columns for upsert conflict detection
     # @option options [Symbol] :conflict_action :update or :ignore for upsert conflicts
+    # @option options [Hash] :extra_columns Additional columns to add to staging table only.
+    #   Keys are column names, values are either a symbol type (:integer, :string, :boolean, etc.)
+    #   or a hash with :type, :default, and :null options.
+    #   Example: { priority: :integer, processed: { type: :boolean, default: false } }
+    # @option options [Hash] :insert_on_conflict Conflict resolution for staging table inserts.
+    #   :target - Column(s) to detect conflicts on (Symbol or Array of Symbols)
+    #   :update - Hash of column => strategy pairs. Strategies: :greatest, :least, :new,
+    #     :existing, :sum, :coalesce, or a raw SQL string.
+    #   Example: { target: [:external_id], update: { priority: :greatest, score: :least } }
     # @option options [Proc] :before_insert Called before inserting into staging
     # @option options [Proc] :after_insert Called after inserting into staging
     # @option options [Proc] :before_transfer Called before transferring to target

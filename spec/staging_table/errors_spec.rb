@@ -85,7 +85,9 @@ RSpec.describe "StagingTable Error Handling" do
 
   describe StagingTable::RecordError do
     it "is raised for invalid record format" do
-      inserter = StagingTable::BulkInserter.new(double("Model"))
+      connection = double("Connection")
+      model_double = double("Model", connection: connection)
+      inserter = StagingTable::BulkInserter.new(model_double)
 
       expect {
         inserter.insert(["not a hash"])
