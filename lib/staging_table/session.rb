@@ -172,15 +172,15 @@ module StagingTable
     end
 
     def normalize_records(records)
-      if records.is_a?(ActiveRecord::Relation)
-        records.map(&:attributes)
-      elsif records.respond_to?(:to_a)
-        records.to_a.map do |record|
-          record.is_a?(ActiveRecord::Base) ? record.attributes : record
-        end
-      else
-        records
-      end
+      return records unless records.is_a?(ActiveRecord::Relation) || records.is_a?(Array)
+
+      records.map { |record| normalize_record(record) }
+    end
+
+    def normalize_record(record)
+      return record unless record.is_a?(ActiveRecord::Base)
+
+      record.attributes_for_database
     end
   end
 end
