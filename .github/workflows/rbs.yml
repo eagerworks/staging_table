@@ -20,11 +20,8 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
 
-      - name: Install RBS
-        run: gem install rbs
-
       - name: Install RBS collection
-        run: rbs collection install
+        run: bundle exec rbs collection install
 
       - name: Validate RBS signatures
-        run: rbs -I sig validate
+        run: bundle exec rbs -I sig validate
