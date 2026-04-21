@@ -36,7 +36,7 @@ RSpec.describe "StagingTable with enum attributes" do
     end
 
     after do
-      session.drop_table if session.instance_variable_get(:@table_created)
+      session.drop_table
       ActiveRecord::Base.connection.drop_table(EnumTestRecord.table_name, if_exists: true)
     end
 
