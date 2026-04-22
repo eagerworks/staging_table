@@ -13,14 +13,28 @@ module StagingTable
     #   - after_transfer: ->(session, result) { ... }
     CALLBACK_OPTIONS = %i[before_insert after_insert before_transfer after_transfer].freeze
 
+    # All non-callback options the session understands. Any other keyword
+    # passed to `.new` raises `ConfigurationError` so typos surface up front
+    # instead of silently disappearing (see issue #33).
+    KNOWN_OPTIONS = %i[
+      batch_size
+      transfer_strategy
+      conflict_target
+      conflict_action
+      excluded_columns
+      include_indexes
+    ].freeze
+
     def initialize(source_model, **options)
       @source_model = source_model
       config = StagingTable.configuration
       @callbacks = options.slice(*CALLBACK_OPTIONS)
+      non_callback_options = options.except(*CALLBACK_OPTIONS)
+      validate_options!(non_callback_options)
       @options = {
         batch_size: config.default_batch_size,
         transfer_strategy: config.default_transfer_strategy
-      }.merge(options.except(*CALLBACK_OPTIONS))
+      }.merge(non_callback_options)
       @table_created = false
     end
 
@@ -181,6 +195,25 @@ module StagingTable
       return record unless record.is_a?(ActiveRecord::Base)
 
       record.attributes_for_database
+    end
+
+    def validate_options!(options)
+      unknown = options.keys - KNOWN_OPTIONS
+      return if unknown.empty?
+
+      messages = unknown.map do |key|
+        suggestion = DidYouMean::SpellChecker.new(dictionary: KNOWN_OPTIONS.map(&:to_s)).correct(key.to_s).first
+        if suggestion
+          "#{key.inspect} (did you mean #{suggestion.to_sym.inspect}?)"
+        else
+          key.inspect
+        end
+      end
+
+      allowed = (KNOWN_OPTIONS + CALLBACK_OPTIONS).sort.map(&:inspect).join(", ")
+      raise ConfigurationError,
+            "Unknown option(s) for StagingTable::Session: #{messages.join(', ')}. " \
+            "Allowed options: #{allowed}."
     end
   end
 end
