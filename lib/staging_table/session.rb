@@ -13,10 +13,22 @@ module StagingTable
     #   - after_transfer: ->(session, result) { ... }
     CALLBACK_OPTIONS = %i[before_insert after_insert before_transfer after_transfer].freeze
 
+    # Supported non-callback options accepted by Session.new. Add new keys here
+    # when the option is wired into Session, an adapter, or a transfer strategy.
+    KNOWN_OPTIONS = %i[
+      batch_size
+      transfer_strategy
+      conflict_target
+      conflict_action
+      excluded_columns
+      include_indexes
+    ].freeze
+
     def initialize(source_model, **options)
       @source_model = source_model
       config = StagingTable.configuration
       @callbacks = options.slice(*CALLBACK_OPTIONS)
+      validate_options!(options.except(*CALLBACK_OPTIONS).keys)
       @options = {
         batch_size: config.default_batch_size,
         transfer_strategy: config.default_transfer_strategy
@@ -151,6 +163,28 @@ module StagingTable
     end
 
     private
+
+    def validate_options!(keys)
+      unknown = keys - KNOWN_OPTIONS
+      return if unknown.empty?
+
+      messages = unknown.map do |key|
+        suggestion = closest_known_option(key)
+        if suggestion
+          "Unknown option `#{key}:` (did you mean `#{suggestion}:`?)"
+        else
+          "Unknown option `#{key}:`"
+        end
+      end
+      raise ConfigurationError, "#{messages.join(", ")}. Known options: #{(KNOWN_OPTIONS + CALLBACK_OPTIONS).map { |k| ":#{k}" }.join(", ")}"
+    end
+
+    def closest_known_option(key)
+      require "did_you_mean" unless defined?(DidYouMean::SpellChecker)
+      DidYouMean::SpellChecker.new(dictionary: KNOWN_OPTIONS.map(&:to_s)).correct(key.to_s).first
+    rescue LoadError
+      nil
+    end
 
     def run_callback(name, *args)
       callback = @callbacks[name]

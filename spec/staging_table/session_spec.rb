@@ -212,6 +212,40 @@ RSpec.describe StagingTable::Session do
         session_with_callback.drop_table
       end
     end
+
+    describe "unknown options" do
+      it "raises ConfigurationError on a typo'd option name" do
+        expect {
+          described_class.new(TestUser, transfer_stratgy: :insert)
+        }.to raise_error(StagingTable::ConfigurationError, /Unknown option `transfer_stratgy:`.*did you mean `transfer_strategy:`/)
+      end
+
+      it "raises ConfigurationError naming every unknown key when several are supplied" do
+        expect {
+          described_class.new(TestUser, transfer_stratgy: :insert, confict_target: [:email])
+        }.to raise_error(StagingTable::ConfigurationError, /transfer_stratgy.*confict_target/m)
+      end
+
+      it "accepts the documented option set without raising" do
+        expect {
+          described_class.new(TestUser,
+            batch_size: 100,
+            transfer_strategy: :insert,
+            conflict_target: [:email],
+            conflict_action: :update,
+            excluded_columns: %w[id],
+            include_indexes: false)
+        }.not_to raise_error
+      end
+
+      it "still accepts callback options without flagging them as unknown" do
+        expect {
+          described_class.new(TestUser,
+            before_insert: ->(_) {},
+            after_transfer: ->(_, _) {})
+        }.not_to raise_error
+      end
+    end
   end
 
   context "with PostgreSQL", :postgresql do
