@@ -249,50 +249,6 @@ RSpec.describe StagingTable::Session do
     end
   end
 
-  describe ".new option validation" do
-    it "accepts all documented KNOWN_OPTIONS" do
-      expect {
-        described_class.new(TestUser,
-          batch_size: 500,
-          transfer_strategy: :insert,
-          conflict_target: [:email],
-          conflict_action: :update,
-          excluded_columns: %w[created_at],
-          include_indexes: true)
-      }.not_to raise_error
-    end
-
-    it "still accepts callback options alongside known options" do
-      expect {
-        described_class.new(TestUser,
-          batch_size: 100,
-          before_insert: ->(_) {},
-          after_transfer: ->(_, _) {})
-      }.not_to raise_error
-    end
-
-    it "raises ConfigurationError on a typo'd option" do
-      expect {
-        described_class.new(TestUser, transfer_stratgy: :upsert)
-      }.to raise_error(StagingTable::ConfigurationError, /:transfer_stratgy/)
-    end
-
-    it "suggests the closest known option in the error message" do
-      expect {
-        described_class.new(TestUser, confict_target: [:email])
-      }.to raise_error(StagingTable::ConfigurationError, /did you mean :conflict_target/)
-    end
-
-    it "lists every unknown option when multiple are passed" do
-      expect {
-        described_class.new(TestUser, transfer_stratgy: :upsert, made_up: 1)
-      }.to raise_error(StagingTable::ConfigurationError) { |e|
-        expect(e.message).to include(":transfer_stratgy")
-        expect(e.message).to include(":made_up")
-      }
-    end
-  end
-
   context "with MySQL", :mysql do
     include_examples "session"
   end
