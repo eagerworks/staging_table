@@ -4,11 +4,12 @@ require "json"
 
 module StagingTable
   class BulkInserter
-    attr_reader :model, :batch_size
+    attr_reader :model, :batch_size, :conflict_resolver
 
-    def initialize(model, batch_size: 1000)
+    def initialize(model, batch_size: 1000, insert_on_conflict: nil)
       @model = model
       @batch_size = batch_size
+      @conflict_resolver = ConflictResolver.new(connection, insert_on_conflict)
     end
 
     def insert(records)
@@ -30,6 +31,7 @@ module StagingTable
         end.join(", ")
 
         sql = "INSERT INTO #{quoted_table} (#{quoted_columns}) VALUES #{values_list}"
+        sql += conflict_resolver.conflict_clause(model.table_name)
         connection.execute(sql)
       end
     end

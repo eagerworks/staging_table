@@ -26,6 +26,42 @@ module StagingTable
         if options[:include_indexes]
           copy_indexes(temp_table_name, source_table_name)
         end
+
+        add_extra_columns(temp_table_name, options[:extra_columns])
+      end
+
+      protected
+
+      def sql_type_for(type)
+        case type
+        when :string, :text
+          "TEXT"
+        when :integer, :bigint
+          "INTEGER"
+        when :float, :decimal
+          "REAL"
+        when :boolean
+          "INTEGER"
+        when :datetime, :timestamp, :date, :time
+          "TEXT"
+        when :binary
+          "BLOB"
+        when :json, :jsonb
+          "TEXT"
+        else
+          raise ConfigurationError, "Unsupported column type for SQLite: #{type.inspect}"
+        end
+      end
+
+      def quote_default(value)
+        case value
+        when true
+          "1"
+        when false
+          "0"
+        else
+          super
+        end
       end
 
       private

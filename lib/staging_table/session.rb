@@ -72,7 +72,7 @@ module StagingTable
       }
 
       Instrumentation.instrument(:insert, payload) do
-        BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(normalized_records)
+        BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000, insert_on_conflict: options[:insert_on_conflict]).insert(normalized_records)
       end
 
       run_callback(:after_insert, self, normalized_records)
@@ -98,7 +98,7 @@ module StagingTable
         relation.find_in_batches(batch_size: options[:batch_size] || 1000) do |batch|
           records = batch.map(&:attributes)
           all_records.concat(records)
-          BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000).insert(records)
+          BulkInserter.new(staging_model, batch_size: options[:batch_size] || 1000, insert_on_conflict: options[:insert_on_conflict]).insert(records)
         end
         instrumentation_payload[:record_count] = all_records.size
       end

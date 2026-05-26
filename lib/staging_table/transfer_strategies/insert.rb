@@ -14,7 +14,9 @@ module StagingTable
         staged_count = @staging_model.count
         return TransferResult.new if staged_count.zero?
 
-        columns = @staging_model.column_names.map { |c| @connection.quote_column_name(c) }.join(", ")
+        # Only transfer columns that exist on both staging and source tables
+        transferable_columns = @staging_model.column_names & @source_model.column_names
+        columns = transferable_columns.map { |c| @connection.quote_column_name(c) }.join(", ")
         source_table = @connection.quote_table_name(@source_model.table_name)
         staging_table = @connection.quote_table_name(@staging_model.table_name)
 

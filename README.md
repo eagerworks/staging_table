@@ -103,7 +103,7 @@ end
 Don't let duplicates crash your party. Configure the transfer strategy to handle conflicts gracefully.
 
 ```ruby
-StagingTable.stage(User, 
+StagingTable.stage(User,
   transfer_strategy: :upsert,    # Default is :insert
   conflict_target: [:email],     # Column(s) to check for conflicts
   conflict_action: :update       # :update (overwrite) or :ignore (skip)
@@ -111,6 +111,85 @@ StagingTable.stage(User,
   staging.insert(records)
 end
 ```
+
+### 📦 Extra Columns
+
+Need columns in your staging table that don't exist in the source model? Perfect for tracking import metadata, priorities, or processing flags.
+
+```ruby
+StagingTable.stage(User,
+  extra_columns: {
+    priority: :integer,                              # Simple type
+    processed: {type: :boolean, default: false},    # With options
+    import_batch: {type: :string, default: "batch_1"}
+  }
+) do |staging|
+  # Insert with extra column values
+  staging.insert([
+    {name: "John", email: "john@example.com", priority: 1},
+    {name: "Jane", email: "jane@example.com", priority: 2}
+  ])
+
+  # Query using extra columns
+  staging.where(priority: 1).find_each do |record|
+    # Process high priority records first
+  end
+
+  # Mark as processed
+  staging.where(processed: false).update_all(processed: true)
+
+  # Extra columns are automatically excluded during transfer
+end
+```
+
+**Supported column types:** `:string`, `:text`, `:integer`, `:bigint`, `:float`, `:decimal`, `:boolean`, `:datetime`, `:date`, `:time`, `:binary`, `:json`, `:jsonb` (PostgreSQL), `:uuid` (PostgreSQL)
+
+### 🔀 Staging Insert Conflict Resolution
+
+Handle conflicts when inserting into the staging table itself. Useful when you're aggregating data from multiple sources or processing the same records multiple times.
+
+```ruby
+StagingTable.stage(User,
+  extra_columns: {priority: :integer, score: :integer},
+  insert_on_conflict: {
+    target: [:email],           # Column(s) to detect conflicts
+    update: {
+      priority: :greatest,      # Keep the higher value
+      score: :sum,              # Add values together
+      name: :new,               # Use the incoming value
+      age: :existing            # Keep the existing value (skip update)
+    }
+  }
+) do |staging|
+  # First batch
+  staging.insert([
+    {email: "john@example.com", name: "John", priority: 1, score: 10}
+  ])
+
+  # Second batch - conflicts are resolved automatically
+  staging.insert([
+    {email: "john@example.com", name: "Johnny", priority: 5, score: 20}
+  ])
+
+  # Result: priority=5 (greatest), score=30 (sum), name="Johnny" (new)
+end
+```
+
+**Available resolution strategies:**
+
+| Strategy | Description | Example Result |
+|----------|-------------|----------------|
+| `:greatest` | Keep the larger value | `GREATEST(existing, incoming)` |
+| `:least` | Keep the smaller value | `LEAST(existing, incoming)` |
+| `:new` | Use the incoming value | Overwrites existing |
+| `:existing` | Keep the existing value | Skips update for this column |
+| `:sum` | Add values together | `existing + incoming` |
+| `:coalesce` | Use incoming if not null, else existing | `COALESCE(incoming, existing)` |
+| `"raw SQL"` | Custom SQL expression | `"COALESCE(excluded.col, staging.col)"` |
+
+**Note:** For PostgreSQL and SQLite, `target` columns are used explicitly in the `ON CONFLICT` clause and must be covered by a unique or exclusion constraint.
+
+For MySQL, `ON DUPLICATE KEY UPDATE` is triggered by *any* violated unique (or primary) key on the table — not just the ones listed in `:target`. If your staging table has multiple unique indexes, the update may fire on conflicts you did not intend. Make sure the column(s) you list in `:target` are the only unique constraint that matters for your use case, or remove any other unique indexes before inserting. Raw SQL strategies using `VALUES(col)` are deprecated since MySQL 8.0.20; the clause still works but may emit warnings.
 
 ### 📊 Transfer Results
 
